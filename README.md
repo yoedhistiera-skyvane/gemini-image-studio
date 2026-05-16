@@ -1,71 +1,70 @@
-# Gemini Image Studio
+# Gemini Image Studio v2
 
-A minimal, production-ready Next.js app for generating images via the Google Gemini API. Supports both model families:
+A polished Next.js app for generating images via the Google Gemini API. v2 adds platform-sized aspect ratios, dynamic cost preview, real-time progress with elapsed seconds, resolution control for Nano Banana Pro (1K/2K/4K), negative prompts, style presets, and smart UI logic.
 
-- **Imagen 4** (Fast / Standard / Ultra) — dedicated text-to-image, cheapest
-- **Nano Banana** family (v1 / v2 / Pro) — Gemini-native, strong text rendering
+## What's new in v2
 
-Your API key stays server-side. The browser never sees it.
+- **Platform-sized aspect ratios** — Square (1080×1080), Feed (1080×1350), Story (1080×1920), Wide, Photo
+- **Dynamic cost** — updates as you change model × quantity × resolution
+- **Real-time progress** — elapsed seconds + estimated total + percentage bar
+- **Resolution selector for Nano Banana Pro** — 1K / 2K / 4K with tier pricing
+- **Negative prompts** — native for Imagen 4, appended as "Avoid: X" for Nano Banana
+- **Style presets** — Product, Cinematic, Editorial, Flat-lay, Minimal 3D, Illustration
+- **Smart quantity logic** — hidden for Imagen 4 Ultra (which only returns 1 per call)
 
 ## Quick start (local)
 
 ```bash
 npm install
 cp .env.example .env.local
-# edit .env.local and paste your key
+# Edit .env.local, paste your key from https://aistudio.google.com/apikey
 npm run dev
 ```
 
 Open http://localhost:3000
 
-Get a key at https://aistudio.google.com/apikey
-
 ## Deploy to Vercel
 
-1. Push this folder to a GitHub repo
-2. Go to https://vercel.com/new and import the repo
-3. In **Environment Variables**, add:
-   - Key: `GEMINI_API_KEY`
-   - Value: your key from Google AI Studio
+1. Push to GitHub
+2. Import at https://vercel.com/new
+3. Add env var `GEMINI_API_KEY`
 4. Deploy
 
-That's it. No other config needed.
+Or with Vercel CLI:
+```bash
+npm install -g vercel
+vercel
+vercel env add GEMINI_API_KEY
+vercel --prod
+```
 
-## Models supported
+## Models
 
-| Model ID | Family | Price/img | Notes |
+| Model ID | Family | Price | Notes |
 |---|---|---|---|
-| `imagen-4.0-fast-generate-001` | Imagen | $0.020 | Cheapest, high volume |
+| `imagen-4.0-fast-generate-001` | Imagen | $0.020 | High-volume drafts |
 | `imagen-4.0-generate-001` | Imagen | $0.040 | Balanced |
-| `imagen-4.0-ultra-generate-001` | Imagen | $0.060 | Top photorealism, 1 img/call |
+| `imagen-4.0-ultra-generate-001` | Imagen | $0.060 | Top photorealism, 1/call |
+| `gemini-3.1-flash-image-preview` | Gemini | $0.045 | Nano Banana 2 |
+| `gemini-3-pro-image-preview` | Gemini | $0.134 - $0.24 | Nano Banana Pro, 1K-4K |
 | `gemini-2.5-flash-image` | Gemini | $0.039 | Original Nano Banana |
-| `gemini-3.1-flash-image-preview` | Gemini | $0.045 | Nano Banana 2, 4K capable |
-| `gemini-3-pro-image-preview` | Gemini | $0.134 | Nano Banana Pro, best quality |
 
-Prices verified May 2026 — check https://ai.google.dev/pricing for current rates.
+Prices verified May 2026.
+
+## Important caveats
+
+- **Nano Banana models return 1 image per API call.** Requesting 4 makes 4 parallel calls. Cost scales linearly.
+- **Progress bar is estimated, not streamed.** The Gemini API has no progress callback for image generation. The bar uses typical timing per model and is transparent about it.
+- **Nano Banana Pro resolution param is passed in-prompt**, since the official `:generateContent` endpoint doesn't expose a structured `resolution` parameter for preview models.
+- **All images carry a SynthID watermark.**
+- **No free tier on the API.** Use AI Studio (https://aistudio.google.com) for free testing.
 
 ## Architecture
 
 ```
 app/
-├── api/generate/route.ts   ← Server-side API route. Holds the key.
-├── page.tsx                 ← Client UI.
+├── api/generate/route.ts   ← Server-side. API key. Routes to Imagen or Gemini.
+├── page.tsx                 ← Client UI with progress, cost preview, presets
 ├── layout.tsx
 └── globals.css
 ```
-
-The API route handles both endpoint shapes:
-- Imagen → `POST /v1beta/models/{model}:predict`
-- Nano Banana → `POST /v1beta/models/{model}:generateContent` with `responseModalities: ['TEXT', 'IMAGE']`
-
-## Notes
-
-- Imagen 4 Ultra only returns 1 image per call — the UI handles this automatically
-- All images include a SynthID watermark (Google policy, can't be disabled)
-- The Gemini API has no free tier for image generation as of 2026 — every call is billed
-- For free experimentation, use Google AI Studio (~500 images/day free) at https://aistudio.google.com
-- Default Vercel function timeout is 10s; this app sets `maxDuration = 60` for Ultra/Pro models
-
-## Extending
-
-To add image editing (upload + modify), use the Nano Banana models and pass image data alongside the text prompt in `contents.parts`. The Imagen models do not support editing.

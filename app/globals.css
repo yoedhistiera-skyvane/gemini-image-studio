@@ -13,19 +13,7 @@ html, body {
   min-height: 100vh;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-input, textarea, select {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-}
-
-textarea {
-  resize: vertical;
-}
-
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+textarea { resize: vertical; }
 a { color: #60a5fa; }

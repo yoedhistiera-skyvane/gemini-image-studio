@@ -1,33 +1,30 @@
-# Gemini Image Studio v3
+# Gemini Image Studio v4
 
-A polished Next.js app for generating brand-consistent images via the Google Gemini API. **v3 adds reference image uploads** so you can lock generations to your logo, product packaging, and visual style.
+A Next.js app for generating **brand-consistent marketing assets** via Google Gemini + Claude.
 
-## What's in v3
+**Smart Mode** is the headline feature: Claude (Sonnet 4.6) acts as your creative director — picks the strategic angle, writes the headline, briefs Gemini with specific photographic direction. Gemini's Nano Banana Pro then renders the asset using your uploaded brand references.
 
-### Brand reference uploads (the big one)
-Upload up to **14 reference images** (logo, product shots, style boards, palettes). The model uses them to keep brand visuals consistent.
+## How Smart Mode works
 
-- Drag-and-drop or click to upload
-- Each image gets a **role tag** (Logo / Product / Style / Palette / Other) so the model knows how to use it
-- Filename auto-detects role (e.g. "logo.png" → Logo)
-- Thumbnails with one-click remove
-- Auto-validates: 14 images max, 18MB total payload
-- Auto-warns when current model can't use references (Imagen 4 family)
+```
+You enter:                          Claude returns:                Gemini renders:
+- Product name                      - Strategic angle              - Final image with
+- Category                          - Headline (10 words max)        embedded headline
+- Audience                  →       - Subhead              →       - Brand-consistent
+- Key benefit                       - Image direction                product
+- Tone, Goal                        - Negative prompt              - Correct text
+- Reference images                  - Composition, lighting,         (uses your refs)
+                                      mood, palette
+```
 
-### Plus everything from v2
-- Platform-sized aspect ratios: Square 1:1, **Feed 4:5** (the actual IG portrait), Photo 3:4, Story 9:16, Landscape 4:3, Wide 16:9
-- Dynamic cost preview (recalculates live)
-- Progress bar with elapsed seconds + estimated total
-- Resolution selector for Nano Banana Pro (1K/2K/4K)
-- Negative prompts
-- Style presets (Product photo, Cinematic, Editorial, Flat-lay, Minimal 3D, Illustration)
+The brief is fully transparent — you see Claude's headline, rationale, and visual direction *before* the image renders. You learn what works.
 
-## Quick start (local)
+## Quick start
 
 ```bash
 npm install
 cp .env.example .env.local
-# Edit .env.local, paste your key from https://aistudio.google.com/apikey
+# Edit .env.local with BOTH keys (Gemini + Claude)
 npm run dev
 ```
 
@@ -37,81 +34,81 @@ Open http://localhost:3000
 
 1. Push to GitHub
 2. Import at https://vercel.com/new
-3. Add env var `GEMINI_API_KEY`
+3. Add **both** env vars:
+   - `GEMINI_API_KEY` from https://aistudio.google.com/apikey
+   - `ANTHROPIC_API_KEY` from https://console.anthropic.com/settings/keys
 4. Deploy
 
-## Which model supports what
+If you only set `GEMINI_API_KEY`, Manual Mode works. Smart Mode requires both.
 
-| Model | Reference images | Resolution control | Multi-image |
-|---|---|---|---|
-| Imagen 4 Fast | ❌ | ❌ | ✅ Native (1-4) |
-| Imagen 4 | ❌ | ❌ | ✅ Native (1-4) |
-| Imagen 4 Ultra | ❌ | ❌ | ❌ (1 only) |
-| Nano Banana | ✅ Up to 14 | ❌ | Fan-out |
-| Nano Banana 2 | ✅ Up to 14 | ❌ | Fan-out |
-| **Nano Banana Pro** | ✅ Up to 14 | ✅ 1K/2K/4K | Fan-out |
+## Smart Mode inputs
 
-**For brand-consistent work, use Nano Banana Pro.** It's the only model with both reference support AND high-resolution output, and it's specifically tuned for text rendering (critical for product packaging).
+- **Product name** (required) — e.g. "Fomin Clean Facial Towels"
+- **Category** (required) — Skincare / Supplement / Beverage / Food / Cosmetics / Apparel / Home / Tech / Service / Other
+- **Target audience** — e.g. "Adults with sensitive skin"
+- **Key benefit** — the one thing this product does better than alternatives
+- **Brand tone** — Premium / Friendly / Clinical / Playful / Minimalist / Bold
+- **Campaign goal** — Awareness / Conversion / Education / Trust-building
+- **Strategic angle** *(optional)* — leave empty for Claude to auto-pick, or pick from category-specific suggestions, or type your own. When provided, Claude executes that angle instead of choosing one.
 
-## Recommended workflow for brand-safe assets
+The fewer inputs you give, the more Claude has to invent. Premium results come from specific, honest inputs.
 
-1. **Upload your logo** as a clean PNG with transparent background → tag as **Logo**
-2. **Upload 1-2 product shots** (existing packaging photos) → tag as **Product**
-3. *Optional*: upload a style/mood reference → tag as **Style**
-4. Pick **Nano Banana Pro** + **2K resolution**
-5. In the prompt, describe the *scene* (where the product sits, lighting, mood) — NOT the product itself
-6. In **negative prompt**, add: `text overlays, captions, headers, watermarks, extra logos, blur`
-7. Generate
+## Cost per generation
 
-**Example prompt for a lifestyle shot of facial towels:**
-> A serene morning bathroom scene: the product placed on a marble countertop next to a small terracotta pot with a green plant. Soft natural light from the left. Steam rising in the background. Calm, premium spa aesthetic.
+| Stage | Cost |
+|---|---|
+| Claude brief (Sonnet 4.6) | ~$0.003 |
+| Nano Banana Pro @ 2K | $0.20 |
+| **Total per asset** | **~$0.20** |
 
-The model uses your uploaded references to keep the product, logo, and brand colors accurate while inventing only the scene around them.
-
-## Caveats (read these)
-
-- **Nano Banana returns 1 image per API call.** Requesting 4 makes 4 parallel calls. Cost scales linearly.
-- **Reference images count toward the 20MB request limit.** The app enforces ~18MB safely. For larger payloads, the Files API would be needed (not implemented here — let me know if you need it).
-- **Progress bar is estimated, not streamed.** Gemini API doesn't provide real-time progress for image generation.
-- **All images carry a SynthID watermark.** Google policy.
-- **No free tier on API.** Use AI Studio (https://aistudio.google.com) for free testing.
-- **Imagen 4 family ignores references entirely.** If you upload refs and pick an Imagen model, the app blocks generation with a clear warning.
+The brief cost is rounding error. The image cost dominates.
 
 ## Architecture
 
 ```
 app/
-├── api/generate/route.ts   ← Server-side. Handles refs via inlineData parts.
-├── page.tsx                 ← Client UI with file upload + role tagging
+├── api/
+│   ├── brief/route.ts    ← Claude writes the creative brief (JSON)
+│   └── generate/route.ts ← Gemini renders the image
+├── page.tsx              ← Mode toggle, brief display, image grid
 ├── layout.tsx
 └── globals.css
 ```
 
-## API contract (if you want to call it yourself)
+## Models used
 
-`POST /api/generate`:
-```json
-{
-  "prompt": "string",
-  "model": "gemini-3-pro-image-preview",
-  "aspectRatio": "1:1",
-  "numberOfImages": 1,
-  "resolution": "2K",
-  "negativePrompt": "watermarks, blur",
-  "references": [
-    { "data": "base64...", "mimeType": "image/png", "role": "logo", "label": "fomin-logo.png" }
-  ]
-}
-```
+- **Claude Sonnet 4.6** (`claude-sonnet-4-6`) for creative briefs — $3/$15 per MTok
+- **Gemini Nano Banana Pro** (`gemini-3-pro-image-preview`) default for images — $0.134-0.24/img
+- All other Gemini image models still available in the dropdown
 
-Returns:
-```json
-{
-  "images": [{ "data": "base64...", "mimeType": "image/png" }],
-  "model": "gemini-3-pro-image-preview",
-  "modelLabel": "Nano Banana Pro",
-  "estimatedCost": "0.2000",
-  "elapsedMs": 12450,
-  "referencesUsed": 2
-}
-```
+## Why two AI providers?
+
+Different models are best at different things. Claude is materially stronger at marketing copywriting (testable — try writing 10 headlines on both, compare). Gemini's Nano Banana Pro is materially stronger at reference-aware image generation with embedded text. Combining them gives you a better tool than either alone.
+
+## Manual Mode
+
+If you want full control or don't want to use Claude, switch to Manual Mode in the top-right toggle. You get the raw prompt + negative prompt + style preset controls. Same image generation, no Claude involvement.
+
+## Caveats (read these)
+
+- **Smart Mode needs ANTHROPIC_API_KEY.** Without it, Smart generation fails with a clear error. Manual Mode keeps working.
+- **Claude returns JSON.** If the model ever returns prose instead (rare), the brief route surfaces the parse error so you can retry.
+- **The image model still does the actual rendering.** Claude can write a perfect brief, but Nano Banana Pro might still occasionally garble text or hallucinate details. Brand references (logo + product photo) are your best defense.
+- **All images carry a SynthID watermark.** Google policy.
+- **No free tier on either API.** Use AI Studio (https://aistudio.google.com) and Claude.ai for free experimentation.
+
+## Example: real workflow for a packaged product ad
+
+1. **Smart Mode**
+2. **Upload references:** your real logo (role: Logo) + a real packaging photo (role: Product)
+3. **Product name:** Fomin Clean Facial Towels
+4. **Category:** Personal Care
+5. **Audience:** Adults with sensitive skin or eczema
+6. **Key benefit:** Gentle enough for daily use during flare-ups
+7. **Tone:** Friendly · **Goal:** Trust-building
+8. **Aspect:** Feed 4:5 · **Resolution:** 2K
+9. Click **✨ Generate Smart Asset**
+
+Claude picks an angle like "Quiet relief, real skin testimonial," writes a headline like "Skin that finally calms down," then briefs Gemini for an intimate, soft-light close-up. Gemini uses your real logo and packaging to render the asset.
+
+Total time: ~20 seconds. Total cost: ~$0.20.

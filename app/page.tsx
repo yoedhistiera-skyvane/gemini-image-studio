@@ -37,11 +37,12 @@ const MODELS: ModelOption[] = [
 ];
 
 const ASPECT_PRESETS = [
-  { label: 'Square', ratio: '1:1',  dims: '1080 × 1080', use: 'IG post' },
-  { label: 'Feed',   ratio: '4:3',  dims: '1080 × 1350', use: 'IG / FB feed' },
-  { label: 'Story',  ratio: '9:16', dims: '1080 × 1920', use: 'Story / Reel' },
-  { label: 'Wide',   ratio: '16:9', dims: '1920 × 1080', use: 'YouTube / web' },
-  { label: 'Photo',  ratio: '3:4',  dims: '1080 × 1440', use: 'Portrait shot' },
+  { label: 'Square',    ratio: '1:1',  dims: '1080 × 1080', use: 'IG post' },
+  { label: 'Feed',      ratio: '4:5',  dims: '1080 × 1350', use: 'IG / FB feed (portrait)' },
+  { label: 'Photo',     ratio: '3:4',  dims: '1080 × 1440', use: 'Portrait photo' },
+  { label: 'Story',     ratio: '9:16', dims: '1080 × 1920', use: 'Story / Reel' },
+  { label: 'Landscape', ratio: '4:3',  dims: '1440 × 1080', use: 'Classic landscape' },
+  { label: 'Wide',      ratio: '16:9', dims: '1920 × 1080', use: 'YouTube / web' },
 ] as const;
 
 const STYLE_PRESETS = [

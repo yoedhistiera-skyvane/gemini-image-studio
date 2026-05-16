@@ -15,7 +15,7 @@ Upload up to **14 reference images** (logo, product shots, style boards, palette
 - Auto-warns when current model can't use references (Imagen 4 family)
 
 ### Plus everything from v2
-- Platform-sized aspect ratios (Square, Feed, Story, Wide, Photo)
+- Platform-sized aspect ratios: Square 1:1, **Feed 4:5** (the actual IG portrait), Photo 3:4, Story 9:16, Landscape 4:3, Wide 16:9
 - Dynamic cost preview (recalculates live)
 - Progress bar with elapsed seconds + estimated total
 - Resolution selector for Nano Banana Pro (1K/2K/4K)

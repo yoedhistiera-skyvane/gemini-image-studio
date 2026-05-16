@@ -1,16 +1,26 @@
-# Gemini Image Studio v2
+# Gemini Image Studio v3
 
-A polished Next.js app for generating images via the Google Gemini API. v2 adds platform-sized aspect ratios, dynamic cost preview, real-time progress with elapsed seconds, resolution control for Nano Banana Pro (1K/2K/4K), negative prompts, style presets, and smart UI logic.
+A polished Next.js app for generating brand-consistent images via the Google Gemini API. **v3 adds reference image uploads** so you can lock generations to your logo, product packaging, and visual style.
 
-## What's new in v2
+## What's in v3
 
-- **Platform-sized aspect ratios** — Square (1080×1080), Feed (1080×1350), Story (1080×1920), Wide, Photo
-- **Dynamic cost** — updates as you change model × quantity × resolution
-- **Real-time progress** — elapsed seconds + estimated total + percentage bar
-- **Resolution selector for Nano Banana Pro** — 1K / 2K / 4K with tier pricing
-- **Negative prompts** — native for Imagen 4, appended as "Avoid: X" for Nano Banana
-- **Style presets** — Product, Cinematic, Editorial, Flat-lay, Minimal 3D, Illustration
-- **Smart quantity logic** — hidden for Imagen 4 Ultra (which only returns 1 per call)
+### Brand reference uploads (the big one)
+Upload up to **14 reference images** (logo, product shots, style boards, palettes). The model uses them to keep brand visuals consistent.
+
+- Drag-and-drop or click to upload
+- Each image gets a **role tag** (Logo / Product / Style / Palette / Other) so the model knows how to use it
+- Filename auto-detects role (e.g. "logo.png" → Logo)
+- Thumbnails with one-click remove
+- Auto-validates: 14 images max, 18MB total payload
+- Auto-warns when current model can't use references (Imagen 4 family)
+
+### Plus everything from v2
+- Platform-sized aspect ratios (Square, Feed, Story, Wide, Photo)
+- Dynamic cost preview (recalculates live)
+- Progress bar with elapsed seconds + estimated total
+- Resolution selector for Nano Banana Pro (1K/2K/4K)
+- Negative prompts
+- Style presets (Product photo, Cinematic, Editorial, Flat-lay, Minimal 3D, Illustration)
 
 ## Quick start (local)
 
@@ -30,41 +40,78 @@ Open http://localhost:3000
 3. Add env var `GEMINI_API_KEY`
 4. Deploy
 
-Or with Vercel CLI:
-```bash
-npm install -g vercel
-vercel
-vercel env add GEMINI_API_KEY
-vercel --prod
-```
+## Which model supports what
 
-## Models
-
-| Model ID | Family | Price | Notes |
+| Model | Reference images | Resolution control | Multi-image |
 |---|---|---|---|
-| `imagen-4.0-fast-generate-001` | Imagen | $0.020 | High-volume drafts |
-| `imagen-4.0-generate-001` | Imagen | $0.040 | Balanced |
-| `imagen-4.0-ultra-generate-001` | Imagen | $0.060 | Top photorealism, 1/call |
-| `gemini-3.1-flash-image-preview` | Gemini | $0.045 | Nano Banana 2 |
-| `gemini-3-pro-image-preview` | Gemini | $0.134 - $0.24 | Nano Banana Pro, 1K-4K |
-| `gemini-2.5-flash-image` | Gemini | $0.039 | Original Nano Banana |
+| Imagen 4 Fast | ❌ | ❌ | ✅ Native (1-4) |
+| Imagen 4 | ❌ | ❌ | ✅ Native (1-4) |
+| Imagen 4 Ultra | ❌ | ❌ | ❌ (1 only) |
+| Nano Banana | ✅ Up to 14 | ❌ | Fan-out |
+| Nano Banana 2 | ✅ Up to 14 | ❌ | Fan-out |
+| **Nano Banana Pro** | ✅ Up to 14 | ✅ 1K/2K/4K | Fan-out |
 
-Prices verified May 2026.
+**For brand-consistent work, use Nano Banana Pro.** It's the only model with both reference support AND high-resolution output, and it's specifically tuned for text rendering (critical for product packaging).
 
-## Important caveats
+## Recommended workflow for brand-safe assets
 
-- **Nano Banana models return 1 image per API call.** Requesting 4 makes 4 parallel calls. Cost scales linearly.
-- **Progress bar is estimated, not streamed.** The Gemini API has no progress callback for image generation. The bar uses typical timing per model and is transparent about it.
-- **Nano Banana Pro resolution param is passed in-prompt**, since the official `:generateContent` endpoint doesn't expose a structured `resolution` parameter for preview models.
-- **All images carry a SynthID watermark.**
-- **No free tier on the API.** Use AI Studio (https://aistudio.google.com) for free testing.
+1. **Upload your logo** as a clean PNG with transparent background → tag as **Logo**
+2. **Upload 1-2 product shots** (existing packaging photos) → tag as **Product**
+3. *Optional*: upload a style/mood reference → tag as **Style**
+4. Pick **Nano Banana Pro** + **2K resolution**
+5. In the prompt, describe the *scene* (where the product sits, lighting, mood) — NOT the product itself
+6. In **negative prompt**, add: `text overlays, captions, headers, watermarks, extra logos, blur`
+7. Generate
+
+**Example prompt for a lifestyle shot of facial towels:**
+> A serene morning bathroom scene: the product placed on a marble countertop next to a small terracotta pot with a green plant. Soft natural light from the left. Steam rising in the background. Calm, premium spa aesthetic.
+
+The model uses your uploaded references to keep the product, logo, and brand colors accurate while inventing only the scene around them.
+
+## Caveats (read these)
+
+- **Nano Banana returns 1 image per API call.** Requesting 4 makes 4 parallel calls. Cost scales linearly.
+- **Reference images count toward the 20MB request limit.** The app enforces ~18MB safely. For larger payloads, the Files API would be needed (not implemented here — let me know if you need it).
+- **Progress bar is estimated, not streamed.** Gemini API doesn't provide real-time progress for image generation.
+- **All images carry a SynthID watermark.** Google policy.
+- **No free tier on API.** Use AI Studio (https://aistudio.google.com) for free testing.
+- **Imagen 4 family ignores references entirely.** If you upload refs and pick an Imagen model, the app blocks generation with a clear warning.
 
 ## Architecture
 
 ```
 app/
-├── api/generate/route.ts   ← Server-side. API key. Routes to Imagen or Gemini.
-├── page.tsx                 ← Client UI with progress, cost preview, presets
+├── api/generate/route.ts   ← Server-side. Handles refs via inlineData parts.
+├── page.tsx                 ← Client UI with file upload + role tagging
 ├── layout.tsx
 └── globals.css
+```
+
+## API contract (if you want to call it yourself)
+
+`POST /api/generate`:
+```json
+{
+  "prompt": "string",
+  "model": "gemini-3-pro-image-preview",
+  "aspectRatio": "1:1",
+  "numberOfImages": 1,
+  "resolution": "2K",
+  "negativePrompt": "watermarks, blur",
+  "references": [
+    { "data": "base64...", "mimeType": "image/png", "role": "logo", "label": "fomin-logo.png" }
+  ]
+}
+```
+
+Returns:
+```json
+{
+  "images": [{ "data": "base64...", "mimeType": "image/png" }],
+  "model": "gemini-3-pro-image-preview",
+  "modelLabel": "Nano Banana Pro",
+  "estimatedCost": "0.2000",
+  "elapsedMs": 12450,
+  "referencesUsed": 2
+}
 ```
